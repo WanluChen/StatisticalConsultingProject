@@ -103,18 +103,42 @@ label(tb3$Front_Kmax)= "Front Kmax"
 label(tb3$Patchy_thin)= "Pachymetry at thinnest point"
 ```
 
+
 **Table 1**
 ```{r tables1, message=FALSE, echo= FALSE, warning=FALSE}
+#t.test
 tbl_summary(tb1, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**")%>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+#wilcoxon
+tbl_summary(tb1, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**")%>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
 ```
 
 **Table 2**
 ```{r tables2, message=FALSE, echo= FALSE, warning=FALSE}
+#t.test
 tbl_summary(tb2, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**")%>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+#wilcoxon
+tbl_summary(tb2, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**")%>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
 ```
 
 **Table 3**
-```{r table23, message=FALSE, echo= FALSE, warning=FALSE}
+```{r tables3, message=FALSE, echo= FALSE, warning=FALSE}
+#t.test
 tbl_summary(tb3, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**") %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+#wilcoxon
+tbl_summary(tb3, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**") %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+wilcox.test(K2~ CXL_fellow, data = tb3)
+wilcox.test(KM~ CXL_fellow, data = tb3)
+wilcox.test(Front_Kmax~ CXL_fellow, data = tb3)
+wilcox.test(Patchy_thin~ CXL_fellow, data = tb3)
+
+t.test(K2~ CXL_fellow, data = tb3)
+t.test(KM~ CXL_fellow, data = tb3)
+t.test(Front_Kmax~ CXL_fellow, data = tb3)
+t.test(Patchy_thin~ CXL_fellow, data = tb3)
 ```
+
 
