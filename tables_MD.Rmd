@@ -113,7 +113,8 @@ tbl_summary(tb1, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test
 tbl_summary(tb2, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**")%>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
 ```
 
-```{r tables1, message=FALSE, echo= FALSE, warning=FALSE}
+**Table 3**
+```{r tables3, message=FALSE, echo= FALSE, warning=FALSE}
 tbl_summary(tb3, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**") %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
 ```
 
