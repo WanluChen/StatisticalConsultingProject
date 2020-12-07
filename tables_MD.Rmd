@@ -87,10 +87,9 @@ table3_dt<- table3_dt %>% filter(prev_lasik==0)
 table3_dt<- table3_dt %>% mutate(CXL_fellow= ifelse(Left_Right==CXL_choice, "Bilateral", "Unilateral"))
 #if pentacam exists, use this value
 table3_dt<- table3_dt %>% mutate(K2 = ifelse(is.na(K2_pentacam)== FALSE, K2_pentacam, K2_pre))
-table3_dt<- table3_dt %>% mutate(KM = ifelse(is.na(KM_pentacam)== FALSE, K2_pentacam, KM_pre))
-table3_dt<- table3_dt %>% mutate(Front_Kmax = ifelse(is.na(K2_pentacam)== FALSE, K_max_front_pentacam, K_max_front_pre))
-table3_dt<- table3_dt %>% mutate(Patchy_thin = ifelse(is.na(Patchy_thin_pentacam)== FALSE, K2_pentacam, Patchy_thin_pre))
-
+table3_dt<- table3_dt %>% mutate(KM = ifelse(is.na(KM_pentacam)== FALSE, KM_pentacam, KM_pre))
+table3_dt<- table3_dt %>% mutate(Front_Kmax = ifelse(is.na(K_max_front_pentacam)== FALSE, K_max_front_pentacam, K_max_front_pre))
+table3_dt<- table3_dt %>% mutate(Patchy_thin = ifelse(is.na(Patchy_thin_pentacam)== FALSE, Patchy_thin_pentacam, Patchy_thin_pre))
 tb3<- table3_dt %>% select(K2, KM, Front_Kmax, Patchy_thin, CXL_fellow)
 
 hist(tb3$K2) #skewed
