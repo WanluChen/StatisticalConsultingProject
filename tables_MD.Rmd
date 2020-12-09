@@ -11,7 +11,7 @@ library(table1)
 library(ggplot2)
 library(gridExtra)
 
-data <- read_excel("FellowEye.xlsx")
+data <- read_excel("Uri Soiberman_FellowEye.xlsx")
 dt<- data[-c(1:2),]
 dt_temp<- dt[,c(1:13, 16:21 ,99)]
 dt_temp2<- dt[,c(1:13, 16:21 ,99)]

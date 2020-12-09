@@ -7,7 +7,7 @@ library(magrittr)
 ###################
 ## load data
 ###################
-FellowEye <- read_excel(paste0(here::here(), "/data/UriSoiberman_FellowEye.xlsx"), skip = 2)
+FellowEye <- read_excel(paste0(here::here(), "Uri Soiberman_FellowEye.xlsx"), skip = 2)
 
 # filter out LASIK
 FellowEye <- FellowEye[which(FellowEye$`Previous LASIK`==0),]
