@@ -29,7 +29,7 @@ get_table_4_by_variable <- function(variable) {
   ## make table
   variable <- paste(c(variable,"Preoperative, N=","1 month, N=","3-31 months, N="),
                     c("", length(which(!is.na(dat[[1]]))), length(which(!is.na(dat[[3]]))), length(which(!is.na(dat[[10]])))), sep = "")
-  table.var <- data.frame(Variable = variable)
+  table.var <- data.frame('Variable, N' = variable, check.names=FALSE)
   
   ## Median Value (IQR)  
   median.iqr <- rep("",4)
@@ -90,8 +90,7 @@ get_table_5_by_variable <- function(variable) {
   
   dat <- data.frame(dat)
   ## make table
-  variable <- paste(c(variable,"Preoperative","1 month","3-31 months"),
-                    c("", length(which(!is.na(dat[[1]]))), length(which(!is.na(dat[[3]]))), length(which(!is.na(dat[[10]])))), sep = "")
+  variable <- c(variable,"Preoperative","1 month","3-31 months")
   table.var <- data.frame(Variable = variable)
 
   # Median Value (iqr) among CXL
@@ -213,7 +212,6 @@ kable(table4) %>%
   kable_styling() %>%
   footnote(
     number = c("Median (IQR) for variable measurements \n",
-               "N for number of patients at each time point \n",
                "Statistical tests performed: Wilcoxon rank-sum test"),
     footnote_as_chunk = T)
 
@@ -225,8 +223,7 @@ suppressWarnings(for (v in variable[2:length(variable)]) {
 kable(table5) %>%
   kable_styling() %>%
   footnote(
-    number = c("Median (IQR) for variable measurements \n",
-               "N for number of patients at each time point \n",
+    number = c("Median (IQR), N for variable measurements \n",
                "Statistical tests performed: Wilcoxon rank-sum test \n",
-               "P-value: whether the difference between the changes in CXL/nonCXL group is significant"),
+               "P-value: Whether the difference between the changes in CXL/nonCXL group is significant"),
     footnote_as_chunk = T)
