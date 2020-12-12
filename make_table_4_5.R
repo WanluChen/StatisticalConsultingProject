@@ -32,7 +32,7 @@ get_table_4_by_variable <- function(variable) {
   table.var <- data.frame(Variable = variable)
   
   ## Median Value (IQR)  
-  median.iqr <- rep(NA,4)
+  median.iqr <- rep("",4)
   # baseline
   median <- median(dat[[1]], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
   iqr <- quantile(dat[[1]], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
@@ -49,7 +49,7 @@ get_table_4_by_variable <- function(variable) {
   table.var[["Median Value (IQR)"]] <- median.iqr
   
   ## Pre op to post op median change
-  median.change <- rep(NA,4)
+  median.change <- rep("",4)
   # 1st month
   median.change[3] <- median(dat[[3]]-dat[[1]], na.rm = TRUE) %>% format(digits=2, nsmall=2)
   # last visit
@@ -58,7 +58,7 @@ get_table_4_by_variable <- function(variable) {
   table.var[["Pre-op to post-op: median change"]] <- median.change
 
   ## Pre op to post op p-value
-  pval <- rep(NA,4)
+  pval <- rep("",4)
   # 1st month
   pval[3] <- wilcox.test(dat[[1]], dat[[3]], paired = TRUE)$p.value %>% round(3) %>% format(digits=3, nsmall=3)
   # last visit
@@ -95,7 +95,7 @@ get_table_5_by_variable <- function(variable) {
   table.var <- data.frame(Variable = variable)
 
   # Median Value (iqr) among CXL
-  median.iqr.cnt <- rep(NA,4)
+  median.iqr.cnt <- rep("",4)
   # baseline
   median <- median(dat[cxl,1], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
   iqr <- quantile(dat[cxl,1], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
@@ -115,7 +115,7 @@ get_table_5_by_variable <- function(variable) {
   table.var[["Median Value (IQR), Count among CXL"]] <- median.iqr.cnt
   
   # Median Value (iqr) among non-CXL
-  median.iqr.cnt <- rep(NA,4)
+  median.iqr.cnt <- rep("",4)
   # baseline
   median <- median(dat[noncxl,1], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
   iqr <- quantile(dat[noncxl,1], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
@@ -134,8 +134,41 @@ get_table_5_by_variable <- function(variable) {
   # col 2
   table.var[["Median Value (IQR), Count among non-CXL"]] <- median.iqr.cnt
   
+  # Changes at post-op visit: CXL
+  change.cxl <- rep("",4)
+  # 1st month
+  change.cxl[3] <- median(dat[cxl,3] - dat[cxl,1], na.rm = TRUE) %>%
+    round(2) %>% format(digits=2, nsmall=2)
+  # last visit
+  change.cxl[4] <- median(dat[cxl,10] - dat[cxl,1], na.rm = TRUE) %>%
+    round(2) %>% format(digits=2, nsmall=2)
+  # col 3
+  table.var[["Changes at post-op visit: CXL"]] <- change.cxl
+  
+  # Changes at post-op visit: nonCXL
+  change.noncxl <- rep("",4)
+  # 1st month
+  change.noncxl[3] <- median(dat[noncxl,3] - dat[noncxl,1], na.rm = TRUE) %>%
+    round(2) %>% format(digits=2, nsmall=2)
+  # last visit
+  change.noncxl[4] <- median(dat[noncxl,10] - dat[noncxl,1], na.rm = TRUE) %>%
+    round(2) %>% format(digits=2, nsmall=2)
+  # col 4
+  table.var[["Changes at post-op visit: nonCXL"]] <- change.noncxl
+  
+  # # Group difference of changes at post-op visit: CXL-nonCXL
+  # diff <- rep("",4)
+  # # 1st month
+  # diff[3] <- (median(dat[cxl,3] - dat[cxl,1], na.rm = TRUE) - median(dat[noncxl,3] - dat[noncxl,1], na.rm = TRUE)) %>%
+  #   round(2) %>% format(digits=2, nsmall=2)
+  # # last visit
+  # diff[4] <- (median(dat[cxl,10] - dat[cxl,1], na.rm = TRUE) - median(dat[noncxl,10] - dat[noncxl,1], na.rm = TRUE)) %>%
+  #   round(2) %>% format(digits=2, nsmall=2)
+  # # col 5
+  # table.var[["Group difference in the change at post-op visit: CXL-nonCXL"]] <- diff
+  
   # Group difference of changes at post-op visit: p-value
-  pval <- rep(NA,4)
+  pval <- rep("",4)
   # # baseline
   # pval[2] <- wilcox.test((dat[[period]][cxl] - dat[[1]][cxl]), (dat[[period]][noncxl] - dat[[1]][noncxl]))$p.value %>%
   #   round(4) %>% format(digits=4, nsmall=4)
@@ -145,7 +178,7 @@ get_table_5_by_variable <- function(variable) {
   # last visit
   pval[4] <- wilcox.test((dat[cxl,10] - dat[cxl,1]), (dat[noncxl,10] - dat[noncxl,1]))$p.value %>%
     round(4) %>% format(digits=4, nsmall=4)
-  # col 3
+  # col 6
   table.var[["Group difference in the change at post-op visit: p-value"]] <- pval
 
   table.var
@@ -171,14 +204,29 @@ noncxl <- which(FellowEye$OD1OS2 != FellowEye$OD1OS2CXL)
 ###################
 variable <- c("K1", "K2", "Km", "K_Max_Front", "Astig", "Pachy_apex", "Pachy_thinnest", "Chamber_volume")
 
+# table 4
 suppressWarnings(table4 <- get_table_4_by_variable(variable[1]))
 suppressWarnings(for (v in variable[2:length(variable)]) {
   table4 <- rbind(table4, get_table_4_by_variable(v))
 })
-kable(table4) %>% kable_styling()
+kable(table4) %>%
+  kable_styling() %>%
+  footnote(
+    number = c("Median (IQR) for variable measurements \n",
+               "N for number of patients at each time point \n",
+               "Statistical tests performed: Wilcoxon rank-sum test"),
+    footnote_as_chunk = T)
 
+# table 5
 suppressWarnings(table5 <- get_table_5_by_variable(variable[1]))
 suppressWarnings(for (v in variable[2:length(variable)]) {
   table5 <- rbind(table5, get_table_5_by_variable(v))
 })
-kable(table5) %>% kable_styling()
+kable(table5) %>%
+  kable_styling() %>%
+  footnote(
+    number = c("Median (IQR) for variable measurements \n",
+               "N for number of patients at each time point \n",
+               "Statistical tests performed: Wilcoxon rank-sum test \n",
+               "P-value: whether the difference between the changes in CXL/nonCXL group is significant"),
+    footnote_as_chunk = T)
