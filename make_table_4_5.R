@@ -133,38 +133,24 @@ get_table_5_by_variable <- function(variable) {
   # col 2
   table.var[["Median Value (IQR), Count among non-CXL"]] <- median.iqr.cnt
   
-  # Changes at post-op visit: CXL
-  change.cxl <- rep("",4)
+  # Changes at post-op visit: Median group difference
+  change.diff <- rep("",4)
   # 1st month
-  change.cxl[3] <- median(dat[cxl,3] - dat[cxl,1], na.rm = TRUE) %>%
-    round(2) %>% format(digits=2, nsmall=2)
+  change.cxl <- median(dat[cxl,3] - dat[cxl,1], na.rm = TRUE)
+  change.noncxl <- median(dat[noncxl,3] - dat[noncxl,1], na.rm = TRUE)
+  median.diff <- (change.cxl - change.noncxl) %>% round(2) %>% format(digits=2, nsmall=2)
+  change.cxl %<>% round(2) %>% format(digits=2, nsmall=2) # format
+  change.noncxl %<>% round(2) %>% format(digits=2, nsmall=2)
+  change.diff[3] <- paste0(median.diff, " (", change.cxl, ", ", change.noncxl, ")", sep = "")
   # last visit
-  change.cxl[4] <- median(dat[cxl,10] - dat[cxl,1], na.rm = TRUE) %>%
-    round(2) %>% format(digits=2, nsmall=2)
+  change.cxl <- median(dat[cxl,10] - dat[cxl,1], na.rm = TRUE)
+  change.noncxl <- median(dat[noncxl,10] - dat[noncxl,1], na.rm = TRUE)
+  median.diff <- (change.cxl - change.noncxl) %>% round(2) %>% format(digits=2, nsmall=2)
+  change.cxl %<>% round(2) %>% format(digits=2, nsmall=2) # format
+  change.noncxl %<>% round(2) %>% format(digits=2, nsmall=2)
+  change.diff[4] <- paste0(median.diff, " (", change.cxl, ", ", change.noncxl, ")", sep = "")
   # col 3
-  table.var[["Changes at post-op visit: CXL"]] <- change.cxl
-  
-  # Changes at post-op visit: nonCXL
-  change.noncxl <- rep("",4)
-  # 1st month
-  change.noncxl[3] <- median(dat[noncxl,3] - dat[noncxl,1], na.rm = TRUE) %>%
-    round(2) %>% format(digits=2, nsmall=2)
-  # last visit
-  change.noncxl[4] <- median(dat[noncxl,10] - dat[noncxl,1], na.rm = TRUE) %>%
-    round(2) %>% format(digits=2, nsmall=2)
-  # col 4
-  table.var[["Changes at post-op visit: nonCXL"]] <- change.noncxl
-  
-  # # Group difference of changes at post-op visit: CXL-nonCXL
-  # diff <- rep("",4)
-  # # 1st month
-  # diff[3] <- (median(dat[cxl,3] - dat[cxl,1], na.rm = TRUE) - median(dat[noncxl,3] - dat[noncxl,1], na.rm = TRUE)) %>%
-  #   round(2) %>% format(digits=2, nsmall=2)
-  # # last visit
-  # diff[4] <- (median(dat[cxl,10] - dat[cxl,1], na.rm = TRUE) - median(dat[noncxl,10] - dat[noncxl,1], na.rm = TRUE)) %>%
-  #   round(2) %>% format(digits=2, nsmall=2)
-  # # col 5
-  # table.var[["Group difference in the change at post-op visit: CXL-nonCXL"]] <- diff
+  table.var[["Changes at post-op visit: CXL"]] <- change.diff
   
   # Group difference of changes at post-op visit: p-value
   pval <- rep("",4)
@@ -173,11 +159,11 @@ get_table_5_by_variable <- function(variable) {
   #   round(4) %>% format(digits=4, nsmall=4)
   # 1st month
   pval[3] <- wilcox.test((dat[cxl,3] - dat[cxl,1]), (dat[noncxl,3] - dat[noncxl,1]))$p.value %>%
-    round(4) %>% format(digits=4, nsmall=4)
+    round(3) %>% format(digits=3, nsmall=3)
   # last visit
   pval[4] <- wilcox.test((dat[cxl,10] - dat[cxl,1]), (dat[noncxl,10] - dat[noncxl,1]))$p.value %>%
-    round(4) %>% format(digits=4, nsmall=4)
-  # col 6
+    round(3) %>% format(digits=3, nsmall=3)
+  # col 4
   table.var[["Group difference in the change at post-op visit: p-value"]] <- pval
 
   table.var
