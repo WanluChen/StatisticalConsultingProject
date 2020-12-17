@@ -150,7 +150,7 @@ get_table_5_by_variable <- function(variable) {
   change.noncxl %<>% round(2) %>% format(digits=2, nsmall=2)
   change.diff[4] <- paste0(median.diff, " (", change.cxl, ", ", change.noncxl, ")", sep = "")
   # col 3
-  table.var[["Changes at post-op visit: CXL"]] <- change.diff
+  table.var[["Group difference in the change at post-op visit: median change (CXL, nonCXL)"]] <- change.diff
   
   # Group difference of changes at post-op visit: p-value
   pval <- rep("",4)
