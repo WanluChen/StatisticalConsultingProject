@@ -177,6 +177,10 @@ get_table_5_by_variable <- function(variable) {
 FellowEye <- read_excel(paste0(here::here(), "/data/UriSoiberman_FellowEye.xlsx"), skip = 2)
 # filter out LASIK
 FellowEye <- FellowEye[which(FellowEye$`Previous LASIK`==0),]
+# remove outliers
+outliers <- c(10, 16, 21, 39, 44, 45, 61, 65, 77, 118)
+FellowEye <- FellowEye[which(!(FellowEye$`Patient code` %in% outliers)),]
+
 # CXL
 cxl <- which(FellowEye$OD1OS2 == FellowEye$OD1OS2CXL)
 # non-CXL
