@@ -1,0 +1,1006 @@
+---
+title: "Codes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+## Table 1-3
+
+```{r }
+library(readxl)
+library(dplyr)
+library(gtsummary)
+library(table1)
+library(ggplot2)
+library(gridExtra)
+library(tidyr)
+
+data <- read_excel("FellowEye.xlsx")
+
+
+
+
+dt<- data[-c(1:2),]
+dt_temp<- dt[,c(1:13, 16:21 ,99)]
+dt_temp2<- dt[,c(1:13, 16:21 ,99)]
+dt_temp <- sapply(dt_temp[c(1:20)], as.numeric)
+dt_temp <-as.data.frame(cbind(dt_temp))
+
+data_names<- c("Patient_code", "Left_Right", "Age", "Gender", "KC_fam_his", "myopia_astig_fam_his", "Ethnicity", "Atopic", "Other_sys_dis", "eye_rubbing", "disease_duration", "corneal_trans", "prev_lasik", "worse_eye", "contact_use", "apical", "vogt_striae", "fleischer_ring", "cone_observed", "CXL_choice") 
+names(dt_temp)<- data_names
+dt_fin<- dt_temp %>% filter(prev_lasik==0)
+
+dt_fin<- dt_fin %>% mutate(remover= ifelse( Patient_code==10|Patient_code==16|Patient_code==21|Patient_code==39|Patient_code==44|Patient_code==45|Patient_code==61|Patient_code==65|Patient_code==77|Patient_code==118, 1, 0))
+dt_fin<- dt_fin %>% filter(remover==0)
+#81 people now 
+
+
+#hist(dt_fin$Age) #skew= use median
+#hist(dt_fin$disease_duration) #skewed- use median
+
+#create a CXL column
+dt_fin<- dt_fin %>% mutate(CXL_fellow= ifelse(Left_Right==CXL_choice, "Bilateral CXL", "Unilateral CXL"))
+
+dt_fin <- dt_fin %>% drop_na(CXL_fellow) #remove the one missing CXL person 
+#create fam history variable
+dt_fin<- dt_fin %>% mutate(family_history= ifelse(myopia_astig_fam_his==1, "Myopia/ astigmatism", ifelse(KC_fam_his==1, "KCN", ifelse(is.na(dt_fin$KC_fam_his), NA, "None"))))
+#make factor variables
+dt_fin$Gender<- as.factor(dt_fin$Gender)
+levels(dt_fin$Gender) <- c("Male", "Female")
+#levels(dt_fin$Gender) #check
+dt_fin$Ethnicity[dt_fin$Ethnicity==0] <- NA 
+dt_fin$Ethnicity<- as.factor(dt_fin$Ethnicity)
+#dt_fin$Ethnicity[dt_fin$Ethnicity=='0'] <- NA 
+levels(dt_fin$Ethnicity) <- c("Caucasian", "African American", "South Asian", "East Asian")
+#levels(dt_fin$Ethnicity)
+label(dt_fin$family_history)= "Family History"
+
+
+
+
+
+
+#https://cran.r-project.org/web/packages/gtsummary/readme/README.html
+#table 1: age, gender, fam history, ethnicity
+
+tb1<- dt_fin %>% select(Age, Gender, family_history, Ethnicity, CXL_fellow) 
+
+#table 2: right/left, disease duration, atopic disease, eye rubbing, contact use and type, apical scar, vogt straie, cone observed clinically
+
+dt_fin$CXL_choice<- as.factor(dt_fin$CXL_choice)
+levels(dt_fin$CXL_choice) <- c("Right", "Left")
+dt_fin$contact_use<- as.factor(dt_fin$contact_use)
+levels(dt_fin$contact_use) <- c("None", "Scleral", "RGP", "Soft")
+dt_fin$dt_fin$Atopic<- as.factor(dt_fin$Atopic)
+levels(dt_fin$Atopic) <- c("No", "Yes")
+dt_fin$eye_rubbing<- as.factor(dt_fin$eye_rubbing)
+levels(dt_fin$eye_rubbing) <- c("No", "Yes")
+dt_fin$apical<- as.factor(dt_fin$apical)
+levels(dt_fin$apical) <- c("No Scarring", "Apical Scarring")
+dt_fin$vogt_striae <-  as.factor(dt_fin$vogt_striae)
+levels(dt_fin$vogt_striae) <- c("No", "Yes")
+dt_fin$cone_observed <-  as.factor(dt_fin$cone_observed)
+levels(dt_fin$cone_observed) <- c("No", "Yes")
+
+dt_removal<- read_excel("surgeon_number.xlsx")
+names(dt_removal)[2]<- c("Patient_code")
+dt_rem<- dt_removal[c("Patient_code", "Surgeon")]
+dt_rem<- dt_rem[!duplicated(dt_rem$Patient_code), ]
+data_merge<- merge(dt_fin,dt_rem,by="Patient_code",all.x=TRUE)
+
+label(data_merge$CXL_choice)= "Eye"
+label(data_merge$disease_duration)= "Disease Duration"
+label(data_merge$eye_rubbing)= "Eye Rubbing"
+label(data_merge$contact_use)= "Contact Lenses Use and Type"
+label(data_merge$apical)= "Apical Scar"
+label(data_merge$Atopic)= "Atopic Disease"
+label(data_merge$vogt_striae)= "Vogt Striae"
+label(data_merge$cone_observed)= "Cone Observed Clinically"
+
+
+
+tb2<- data_merge %>% select(CXL_choice, disease_duration, Atopic, eye_rubbing, contact_use, apical,vogt_striae, cone_observed, CXL_fellow, Surgeon) 
+
+#table 3: K2, Km, front KMAX, pachymetry
+#For people with proof of pentacam, use these values instead of the pre-operative 
+
+table3_dt<- dt[,c(1, 2, 13, 35, 36, 48, 55, 70, 71, 83, 90, 99)]
+names(table3_dt)<- c("Patient_code", "Left_Right", "prev_lasik", "K2_pre", "KM_pre", "Patchy_thin_pre", "K_max_front_pre", "K2_pentacam", "KM_pentacam", "Patchy_thin_pentacam", "K_max_front_pentacam", "CXL_choice")
+
+#make everything numeric
+table3_dt <- sapply(table3_dt, as.numeric)
+table3_dt <-as.data.frame(cbind(table3_dt))
+#take out previous lasik
+table3_dt<- table3_dt %>% filter(prev_lasik==0)
+#create a CXL column
+table3_dt<- table3_dt %>% mutate(CXL_fellow= ifelse(Left_Right==CXL_choice, "Bilateral CXL", "Unilateral CXL"))
+table3_dt <- table3_dt %>% drop_na(CXL_fellow)
+#if pentacam exists, use this value
+table3_dt<- table3_dt %>% mutate(K2 = ifelse(is.na(K2_pentacam)== FALSE, K2_pentacam, K2_pre))
+table3_dt<- table3_dt %>% mutate(KM = ifelse(is.na(KM_pentacam)== FALSE, KM_pentacam, KM_pre))
+table3_dt<- table3_dt %>% mutate(Front_Kmax = ifelse(is.na(K_max_front_pentacam)== FALSE, K_max_front_pentacam, K_max_front_pre))
+table3_dt<- table3_dt %>% mutate(Patchy_thin = ifelse(is.na(Patchy_thin_pentacam)== FALSE, Patchy_thin_pentacam, Patchy_thin_pre))
+table3_dt<- table3_dt%>% mutate(remover= ifelse( Patient_code==10|Patient_code==16|Patient_code==21|Patient_code==39|Patient_code==44|Patient_code==45|Patient_code==61|Patient_code==65|Patient_code==77|Patient_code==118, 1, 0))
+table3_dt<- table3_dt %>% filter(remover==0)
+
+
+tb3<- table3_dt %>% select(K2, KM, Front_Kmax, Patchy_thin, CXL_fellow)
+
+# hist(tb3$K2) #skewed
+# hist(tb3$KM) #skewed
+# hist(tb3$Front_Kmax) #skewed
+# hist(tb3$Patchy_thin) 
+# 
+# hist(sqrt(tb3$K2)) #
+# hist(sqrt(tb3$KM)) #
+# hist(sqrt(tb3$Front_Kmax)) #s
+# hist(sqrt(tb3$Patchy_thin)) #
+# 
+# hist(log(tb3$K2)) #
+# hist(log(tb3$KM)) #
+# hist(log(tb3$Front_Kmax)) #s
+# hist(log(tb3$Patchy_thin)) #
+
+label(tb3$KM)= "Km"
+label(tb3$Front_Kmax)= "Front Kmax"
+label(tb3$Patchy_thin)= "Pachymetry at thinnest point"
+
+#boxplots
+table3_dt_complete<- table3_dt[complete.cases(table3_dt[,c("K2", "KM", "Front_Kmax", "Patchy_thin", "CXL_fellow")]),] 
+
+k2<- ggplot(table3_dt_complete, aes(x=CXL_fellow, y=K2, color=CXL_fellow)) +geom_boxplot() + theme_bw() + labs(color='CXL Type')+ xlab(" ") + ylab("K2")
+km<- ggplot(table3_dt_complete, aes(x=CXL_fellow, y=KM, color=CXL_fellow)) +geom_boxplot() + theme_bw() + labs(color='CXL Type') + xlab(" ")+ ylab("KM")
+patchy_thin<- ggplot(table3_dt_complete, aes(x=CXL_fellow, y=Patchy_thin, color=CXL_fellow)) +geom_boxplot() + theme_bw() + labs(color='CXL Type') + ylab("Pachymetry at Thinnest Point") + xlab(" ")
+front_kmax<- ggplot(table3_dt_complete, aes(x=CXL_fellow, y=Front_Kmax, color=CXL_fellow)) +geom_boxplot() + theme_bw() + labs(color='CXL Type') + ylab("Front Kmax") + xlab(" ")
+
+```
+
+
+With some of the continuous variables, there is a skew in the distribution so we will use the median [IQR] instead of the median (sd) in the tables and use a wilcoxon rank test to test the p-value. Below shows the skew in the distribution of some of the variables. 
+```{r bp}
+grid.arrange(k2, km, patchy_thin, front_kmax) 
+```
+
+#### Table 1
+
+**Table 1** Patient characteristics among those with bilateral CXL and unilateral CXL, respectively. 
+```{r tables1}
+#t.test
+# tbl_summary(tb1, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**")%>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+
+fisher.test(tb1$family_history, tb1$CXL_fellow)
+fisher.test(tb1$Ethnicity, tb1$CXL_fellow)
+
+
+
+#wilcoxon
+tbl_summary(tb1, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+tbl_summary(tb1) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+```
+
+#### Table 2
+
+**Table 2** Baseline eye characteristics among those with bilateral CXL and unilateral CXL, respectively. 
+```{r tables2}
+#t.test
+# tbl_summary(tb2, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**")%>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+#wilcoxon
+tbl_summary(tb2, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+tbl_summary(tb2) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+chisq.test(tb2$CXL_choice, tb2$CXL_fellow) 
+wilcox.test(disease_duration~ CXL_fellow, data = tb2)
+chisq.test(tb2$Atopic, tb2$CXL_fellow) 
+fisher.test(tb2$eye_rubbing, tb2$CXL_fellow)
+fisher.test(tb2$contact_use, tb2$CXL_fellow)
+
+fisher.test(tb2$vogt_striae, tb2$CXL_fellow)
+fisher.test(tb2$cone_observed, tb2$CXL_fellow)
+fisher.test(tb2$Surgeon, tb2$CXL_fellow)
+```
+
+#### Table 3
+
+**Table 3** ~ Severity of disease at preoperative visit among those with bilateral CXL and unilateral CXL, respectively. 
+```{r tables3}
+#t.test
+# tbl_summary(tb3, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**") %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+#wilcoxon
+tbl_summary(tb3, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+tbl_summary(tb3) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+#check p-values
+# wilcox.test(K2~ CXL_fellow, data = tb3)
+# wilcox.test(KM~ CXL_fellow, data = tb3)
+# wilcox.test(Front_Kmax~ CXL_fellow, data = tb3)
+# wilcox.test(Patchy_thin~ CXL_fellow, data = tb3)
+# 
+# t.test(K2~ CXL_fellow, data = tb3)
+# t.test(KM~ CXL_fellow, data = tb3)
+# t.test(Front_Kmax~ CXL_fellow, data = tb3)
+# t.test(Patchy_thin~ CXL_fellow, data = tb3)
+```
+
+
+
+## Table 4-5
+
+
+#### Function for making table 4
+
+```{r}
+rm(list=ls())
+library(readxl)
+library(here)
+library(ggplot2)
+library(magrittr)
+library(kableExtra)
+
+###################
+## help function
+###################
+
+################### Table 4 ###################
+get_table_4_by_variable <- function(variable) {
+  ## process data
+  dat <- FellowEye[,grep(paste0("^", variable), names(FellowEye), value=TRUE)]
+  dat[] <- lapply(dat, function(x) {
+    as.numeric(x)
+  })
+  # baseline
+  dat[which(!is.na(dat[,2])), 1] <- dat[which(!is.na(dat[,2])), 2]
+  # last visit
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 9]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 8]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 7]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 6]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 5]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 4]
+  
+  ## make table
+  variable <- paste(c(variable,"Preoperative, N=","1 month, N=","3-31 months, N="),
+                    c("", length(which(!is.na(dat[[1]]))), length(which(!is.na(dat[[3]]))), length(which(!is.na(dat[[10]])))), sep = "")
+  table.var <- data.frame('Variable, N' = variable, check.names=FALSE)
+  
+  ## Median Value (IQR)  
+  median.iqr <- rep("",4)
+  # baseline
+  median <- median(dat[[1]], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[[1]], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  median.iqr[2] <- paste0(median, " (", iqr[1], ", ", iqr[2], ")", sep = "")
+  # 1st month
+  median <- median(dat[[3]], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[[3]], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  median.iqr[3] <- paste0(median, " (", iqr[1], ", ", iqr[2], ")", sep = "")
+  # last visit
+  median <- median(dat[[10]], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[[10]], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  median.iqr[4] <- paste0(median, " (", iqr[1], ", ", iqr[2], ")", sep = "")
+  # col 1
+  table.var[["Median Value (IQR)"]] <- median.iqr
+  
+  ## Pre op to post op median change
+  median.change <- rep("",4)
+  # 1st month
+  median.change[3] <- median(dat[[3]]-dat[[1]], na.rm = TRUE) %>% format(digits=2, nsmall=2)
+  # last visit
+  median.change[4] <- median(dat[[10]]-dat[[1]], na.rm = TRUE) %>% format(digits=2, nsmall=2)
+  # col 2
+  table.var[["Pre-op to post-op: median change"]] <- median.change
+
+  ## Pre op to post op p-value
+  pval <- rep("",4)
+  # 1st month
+  pval[3] <- wilcox.test(dat[[1]], dat[[3]], paired = TRUE)$p.value %>% round(3) %>% format(digits=3, nsmall=3)
+  # last visit
+  pval[4] <- wilcox.test(dat[[1]], dat[[10]], paired = TRUE)$p.value %>% round(3) %>% format(digits=3, nsmall=3)
+  # col 3
+  table.var[["Pre-op to post-op: pvalue"]] <- pval
+  
+  table.var
+}
+
+```
+
+#### Function for making table 5
+
+```{r}
+################### Table 5 ###################
+get_table_5_by_variable <- function(variable) {
+  ## process data
+  dat <- FellowEye[,grep(paste0("^", variable), names(FellowEye), value=TRUE)]
+  dat[] <- lapply(dat, function(x) {
+    as.numeric(x)
+  })
+  # baseline
+  dat[which(!is.na(dat[,2])), 1] <- dat[which(!is.na(dat[,2])), 2]
+  # last visit
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 9]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 8]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 7]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 6]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 5]
+  dat[which(is.na(dat[,10])), 10] <- dat[which(is.na(dat[,10])), 4]
+  
+  dat <- data.frame(dat)
+  ## make table
+  variable <- c(variable,"Preoperative","1 month","3-31 months")
+  table.var <- data.frame(Variable = variable)
+
+  # Median Value (iqr) among CXL
+  median.iqr.cnt <- rep("",4)
+  # baseline
+  median <- median(dat[cxl,1], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[cxl,1], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  cnt <- length(which(!is.na(dat[cxl,1])))
+  median.iqr.cnt[2] <- paste0(median, " (", iqr[1], ", ", iqr[2], "), N=", cnt, sep = "")
+  # 1st month
+  median <- median(dat[cxl,3], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[cxl,3], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  cnt <- length(which(!is.na(dat[cxl,3])))
+  median.iqr.cnt[3] <- paste0(median, " (", iqr[1], ", ", iqr[2], "), N=", cnt, sep = "")
+  # last visit
+  median <- median(dat[cxl,10], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[cxl,10], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  cnt <- length(which(!is.na(dat[cxl,10])))
+  median.iqr.cnt[4] <- paste0(median, " (", iqr[1], ", ", iqr[2], "), N=", cnt, sep = "")
+  # col 1
+  table.var[["Median Value (IQR), Count among CXL"]] <- median.iqr.cnt
+  
+  # Median Value (iqr) among non-CXL
+  median.iqr.cnt <- rep("",4)
+  # baseline
+  median <- median(dat[noncxl,1], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[noncxl,1], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  cnt <- length(which(!is.na(dat[noncxl,1])))
+  median.iqr.cnt[2] <- paste0(median, " (", iqr[1], ", ", iqr[2], "), N=", cnt, sep = "")
+  # 1st month
+  median <- median(dat[noncxl,3], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[noncxl,3], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  cnt <- length(which(!is.na(dat[noncxl,3])))
+  median.iqr.cnt[3] <- paste0(median, " (", iqr[1], ", ", iqr[2], "), N=", cnt, sep = "")
+  # last visit
+  median <- median(dat[noncxl,10], na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  iqr <- quantile(dat[noncxl,10], probs= c(.25, .75), na.rm = TRUE) %>% round(2) %>% format(digits=2, nsmall=2)
+  cnt <- length(which(!is.na(dat[noncxl,10])))
+  median.iqr.cnt[4] <- paste0(median, " (", iqr[1], ", ", iqr[2], "), N=", cnt, sep = "")
+  # col 2
+  table.var[["Median Value (IQR), Count among non-CXL"]] <- median.iqr.cnt
+  
+  # Changes at post-op visit: Median group difference
+  change.diff <- rep("",4)
+  # 1st month
+  change.cxl <- median(dat[cxl,3] - dat[cxl,1], na.rm = TRUE)
+  change.noncxl <- median(dat[noncxl,3] - dat[noncxl,1], na.rm = TRUE)
+  median.diff <- (change.cxl - change.noncxl) %>% round(2) %>% format(digits=2, nsmall=2)
+  change.cxl %<>% round(2) %>% format(digits=2, nsmall=2) # format
+  change.noncxl %<>% round(2) %>% format(digits=2, nsmall=2)
+  change.diff[3] <- paste0(median.diff, " (", change.cxl, ", ", change.noncxl, ")", sep = "")
+  # last visit
+  change.cxl <- median(dat[cxl,10] - dat[cxl,1], na.rm = TRUE)
+  change.noncxl <- median(dat[noncxl,10] - dat[noncxl,1], na.rm = TRUE)
+  median.diff <- (change.cxl - change.noncxl) %>% round(2) %>% format(digits=2, nsmall=2)
+  change.cxl %<>% round(2) %>% format(digits=2, nsmall=2) # format
+  change.noncxl %<>% round(2) %>% format(digits=2, nsmall=2)
+  change.diff[4] <- paste0(median.diff, " (", change.cxl, ", ", change.noncxl, ")", sep = "")
+  # col 3
+  table.var[["Group difference in the change at post-op visit: median change (CXL, nonCXL)"]] <- change.diff
+  
+  # Group difference of changes at post-op visit: p-value
+  pval <- rep("",4)
+  # # baseline
+  # pval[2] <- wilcox.test((dat[[period]][cxl] - dat[[1]][cxl]), (dat[[period]][noncxl] - dat[[1]][noncxl]))$p.value %>%
+  #   round(4) %>% format(digits=4, nsmall=4)
+  # 1st month
+  pval[3] <- wilcox.test((dat[cxl,3] - dat[cxl,1]), (dat[noncxl,3] - dat[noncxl,1]))$p.value %>%
+    round(3) %>% format(digits=3, nsmall=3)
+  # last visit
+  pval[4] <- wilcox.test((dat[cxl,10] - dat[cxl,1]), (dat[noncxl,10] - dat[noncxl,1]))$p.value %>%
+    round(3) %>% format(digits=3, nsmall=3)
+  # col 4
+  table.var[["Group difference in the change at post-op visit: p-value"]] <- pval
+
+  table.var
+}
+
+```
+
+
+#### Make table 4 and 5
+```{r}
+###################
+## load data
+###################
+FellowEye <- read_excel(paste0(here::here(), "/data/UriSoiberman_FellowEye.xlsx"), skip = 2)
+# filter out LASIK
+FellowEye <- FellowEye[which(FellowEye$`Previous LASIK`==0),]
+# remove outliers
+outliers <- c(10, 16, 21, 39, 44, 45, 61, 65, 77, 118)
+FellowEye <- FellowEye[which(!(FellowEye$`Patient code` %in% outliers)),]
+
+# CXL
+cxl <- which(FellowEye$OD1OS2 == FellowEye$OD1OS2CXL)
+# non-CXL
+noncxl <- which(FellowEye$OD1OS2 != FellowEye$OD1OS2CXL)
+
+
+
+###################
+## make table
+###################
+variable <- c("K1", "K2", "Km", "K_Max_Front", "Astig", "Pachy_apex", "Pachy_thinnest", "Chamber_volume")
+
+# table 4
+suppressWarnings(table4 <- get_table_4_by_variable(variable[1]))
+suppressWarnings(for (v in variable[2:length(variable)]) {
+  table4 <- rbind(table4, get_table_4_by_variable(v))
+})
+kable(table4) %>%
+  kable_styling() %>%
+  footnote(
+    number = c("Median (IQR) for variable measurements \n",
+               "Statistical tests performed: Wilcoxon rank-sum test"),
+    footnote_as_chunk = T)
+
+# table 5
+suppressWarnings(table5 <- get_table_5_by_variable(variable[1]))
+suppressWarnings(for (v in variable[2:length(variable)]) {
+  table5 <- rbind(table5, get_table_5_by_variable(v))
+})
+kable(table5) %>%
+  kable_styling() %>%
+  footnote(
+    number = c("Median (IQR), N for variable measurements \n",
+               "Statistical tests performed: Wilcoxon rank-sum test \n",
+               "P-value: Whether the difference between the changes in CXL/nonCXL group is significant"),
+    footnote_as_chunk = T)
+```
+
+
+## Table 6
+
+
+```{r, read data}
+library(kableExtra)
+options(knitr.kable.NA = '')
+library(nlme)
+library(lme4)
+library(dplyr)
+library(tidyr)
+library(readxl)
+
+felloweye = read_excel("Uri Soiberman_FellowEye.xlsx",  skip = 2)
+
+outlier = c(10,  21,  44,  45,  65, 118,  39,  77,  16,  61)
+#Remove outliers
+felloweye = felloweye[!felloweye$`Patient code` %in% outlier, ]
+
+# Remove patients with previous LASIK (possible ectisia)
+felloweye = felloweye[felloweye$`Previous LASIK` == 0,]
+
+surgeon <- read_excel("Patient by surgeon for stats.felloweye.xlsx")
+
+surgeon.OS = surgeon[surgeon$Eye =="OS",]
+surgeon.OD = surgeon[surgeon$Eye =="OD",]
+surgeon = merge(surgeon.OD, surgeon.OS, by = "Patient Code", all = T)
+
+# Assume OD and OS of the same patients receive surgery from the same surgeons.
+#(There are missing for OD and OS separately)
+surgeon$Surgeon.x = ifelse(is.na(surgeon$Surgeon.x) == T, surgeon$Surgeon.y, surgeon$Surgeon.x)
+
+felloweye = merge(felloweye, surgeon[,c("Surgeon.x", "Patient Code")], by.x = "Patient code", by.y = "Patient Code",all.x = T, all.y = F)
+felloweye$CXL = as.factor(ifelse(felloweye$OD1OS2CXL-felloweye$OD1OS2 == 0, 1, 0))
+felloweye <- felloweye %>%
+  mutate(Ethnicity = recode(EthnicityWhite1AfricanAmerican2SouthAsian3Asian4Hispanic5,
+                            "1" = "White",
+                            "2" = "African American",
+                            "3" = "South Asian",
+                            "4" = "Asian"),
+         Surgeon = as.factor(Surgeon.x),
+         Gender = recode(GenderM1F2, "1" = "Male", "2" = "Female"),
+         Patient = `Patient code`,
+         KC = `Family history of KC`,
+         MA = `Family history of myopia/astigmatism`,
+         Age = Age_baseline_visit,
+         Atopic = `Atopic disease`,
+         Rubbing = `Eye rubbing`)
+```
+
+
+```{r}
+# collapse 6+ months data, find the last visit
+
+Kplus  = felloweye[, c("K26", "K212", "K218","K224","K227","K231")]
+felloweye$K23p = apply(Kplus, 1, function(x) { 
+  tmp = tail(x[!is.na(x)], 1)
+  if (length(tmp) == 0) return( NA )
+  if (length(tmp) > 0) return( tmp )
+  }
+)
+
+Kplus  = felloweye[, c("Km6", "Km12", "Km18","Km24","Km27","Km31")]
+felloweye$Km3p = apply(Kplus, 1, function(x) { 
+  tmp = tail(x[!is.na(x)], 1)
+  if (length(tmp) == 0) return( NA )
+  if (length(tmp) > 0) return( tmp )
+  }
+)
+
+Kplus  = felloweye[, c("K_Max_Front6", "K_Max_Front12", "K_Max_Front18","K_Max_Front24","K_Max_Front27","K_Max_Front31")]
+felloweye$Kmax3p = apply(Kplus, 1, function(x) { 
+  tmp = tail(x[!is.na(x)], 1)
+  if (length(tmp) == 0) return( NA )
+  if (length(tmp) > 0) return( tmp )
+  }
+)
+
+Kplus  = felloweye[, c("Pachy_thinnest6", "Pachy_thinnest12", "Pachy_thinnest18","Pachy_thinnest24","Pachy_thinnest27","Pachy_thinnest31")]
+felloweye$thin3p = apply(Kplus, 1, function(x) { 
+  tmp = tail(x[!is.na(x)], 1)
+  if (length(tmp) == 0) return( NA )
+  if (length(tmp) > 0) return( tmp )
+  }
+)
+```
+
+
+#### Make spaghetti plots
+
+```{r, fig.width=10}
+### visualize
+library(ggplot2)
+
+dat = felloweye[, c("K20", "K21", "K23", "K23p","CXL", "Patient")]
+dat = gather(dat, Months, K2, K20,K21,K23,K23p, factor_key=TRUE)
+dat = dat[!is.na(dat$CXL),]
+levels(dat$Months) = c("0","1","3","6+")
+levels(dat$CXL) = c("Non-CXL", "CXL")
+
+g1 = ggplot(data = dat, aes(x=Months, y=K2, group = Patient,color = CXL)) +
+  geom_line(alpha = 0.7)+
+   stat_summary(aes(group = 1), geom = "point", fun.y = median,
+    shape = 17, size = 3)+
+  theme_minimal()+ facet_grid(. ~ CXL)+
+  theme(legend.position = "none")
+
+felloweye$Km1[27] = "41.4"
+felloweye$Km1 = as.numeric(felloweye$Km1)
+dat = felloweye[, c("Km0", "Km1", "Km3", "Km3p","CXL", "Patient")]
+dat = gather(dat, Months, Km, Km0,Km1,Km3,Km3p, factor_key=TRUE)
+dat = dat[!is.na(dat$CXL),]
+levels(dat$Months) = c("0","1","3","6+")
+levels(dat$CXL) = c("Non-CXL", "CXL")
+
+g2 = ggplot(data = dat, aes(x=Months, y=Km, group = Patient,color = CXL)) +
+  geom_line(alpha = 0.7)+
+   stat_summary(aes(group = 1), geom = "point", fun.y = median,
+    shape = 17, size = 3)+
+  theme_minimal()+ facet_grid(. ~ CXL)+
+  theme(legend.position = "none")
+
+dat = felloweye[, c("K_Max_Front0", "K_Max_Front1", "K_Max_Front3", "Kmax3p","CXL", "Patient")]
+dat = gather(dat, Months, Kmax, K_Max_Front0,K_Max_Front1,K_Max_Front3,Kmax3p, factor_key=TRUE)
+dat = dat[!is.na(dat$CXL),]
+levels(dat$Months) = c("0","1","3","6+")
+levels(dat$CXL) = c("Non-CXL", "CXL")
+
+g3 = ggplot(data = dat, aes(x=Months, y=Kmax, group = Patient,color = CXL)) +
+  geom_line(alpha = 0.7)+
+   stat_summary(aes(group = 1), geom = "point", fun.y = median,
+    shape = 17, size = 3)+
+  theme_minimal()+ facet_grid(. ~ CXL)+
+  theme(legend.position = "none")
+
+dat = felloweye[, c("Pachy_thinnest0", "Pachy_thinnest1", "Pachy_thinnest3", "thin3p","CXL", "Patient")]
+dat = gather(dat, Months, thin, Pachy_thinnest0,Pachy_thinnest1,Pachy_thinnest3,thin3p, factor_key=TRUE)
+dat = dat[!is.na(dat$CXL),]
+levels(dat$Months) = c("0","1","3","6+")
+levels(dat$CXL) = c("Non-CXL", "CXL")
+
+g4 = ggplot(data = dat, aes(x=Months, y=thin, group = Patient,color = CXL)) +
+  geom_line(alpha = 0.7)+
+   stat_summary(aes(group = 1), geom = "point", fun.y = median,
+    shape = 17, size = 3)+
+  theme_minimal()+ facet_grid(. ~ CXL)+
+  theme(legend.position = "none")
+  
+
+library(ggpubr)
+ggarrange(g1,g2,g3,g4,nrow = 2 , ncol = 2)
+```
+
+<font size="3"> For adjusted analysis, we use linear mixed model to account for the correlation of repeated measures from the same individuals. We started from ajusting all the covariates, </font>
+
+$$\text{Outcome} \sim \text{CXL * time + Surgeon + (1|id)+ age + gender + atopic disease + eye rubbing + ethnicity + family history } $$
+
+<font size="3"> and then remove covariates that do not have statistically significant associations with the outcome (K2, Km, Kmax, Thinnest). </font>
+
+#### K2 (Make table 6(a))
+
+
+```{r pressure}
+
+K2 = felloweye[,c("Patient", "CXL", "K20", "K21", "K23", "K23p",
+                  "KC","MA", "Age", "Gender", "Atopic", "Surgeon",
+                  "Rubbing", "Ethnicity")]
+
+K2.long = gather(K2, time, K2, K20,K21,K23,K23p, factor_key=TRUE)
+df = data.frame(Patient = K2.long$Patient, CXL = K2.long$CXL,
+                time = K2.long$time, K2 = K2.long$K2)
+df = df[complete.cases(df),]
+
+#df = K2.long[complete.cases(K2.long),]
+
+#summary(lme(data = df[df$CXL == 0,], K2 ~ time + Surgeon, random =~ 1|Patient))
+#summary(lme(data = df[df$CXL == 1,], K2 ~ time + Surgeon, random =~ 1|Patient))
+
+lme.K2 = lme(data = df, K2 ~ CXL * time , random =~ 1|Patient)
+coe = lme.K2$coefficients$fixed
+ci  = round(intervals(lme.K2)$fixed[,c(1,3)],2)
+p = summary(lme.K2)$tTable[,5]
+ci = apply(ci, 1, function(x) {paste0("(",x[1],",",x[2],")" )})
+result0 = data.frame(Estimates = round(coe,2), CI = ci, p = round(p, 3))
+rownames(result0)[3:5] = c("time-1mon", "time-3mon", "time-6mon+")
+
+cov.mat = summary(lme.K2)$varFix
+coe1 = round(c(coe[4]-coe[3],                      #K2 for non-CXL: estimate of POM3-POM1
+               coe[5]-coe[4],                      #K2 for non-CXL: estimate of POM6+-POM3
+               coe[3]+coe[6],                      #K2 for CXL: estimate of POM1 - baseline
+               coe[4]+coe[7]-(coe[3]+coe[6]),      #K2 for CXL: estimate of POM3 - POM1
+               coe[5]+coe[8]-(coe[4]+coe[7])),2)   #K2 for CXL: estimate of POM6+ - POM3
+sd = sqrt( c(cov.mat[3,3]+cov.mat[4,4] - 2* cov.mat[3,4],
+             cov.mat[4,4]+cov.mat[5,5] - 2* cov.mat[4,5],
+             cov.mat[3,3] + cov.mat[6,6] + 2* cov.mat[3,6],
+             cov.mat[4,4] + cov.mat[7,7] + cov.mat[3,3] + cov.mat[6,6] + 
+              2*(cov.mat[4,7]-cov.mat[3,4]-cov.mat[4,6]-cov.mat[3,7]-cov.mat[6,7]+cov.mat[3,6]),
+             cov.mat[5,5] + cov.mat[8,8] + cov.mat[4,4] + cov.mat[7,7] +
+               2* (cov.mat[5,8] - cov.mat[4,5]-cov.mat[5,7]-cov.mat[4,8]-cov.mat[7,8]+cov.mat[4,7])))
+ci1 = round(cbind(coe1 - 1.96*sd, coe1 + 1.96*sd),2)
+ci1 = apply(ci1, 1, function(x) {paste0("(",x[1],",",x[2],")" )})
+p1 = round( c( anova(lme.K2, L = c(0,0,-1,1,0,0,0,0))$`p-value`,      # Calculate p-value
+               anova(lme.K2, L = c(0,0,0,-1,1,0,0,0))$`p-value`,
+               anova(lme.K2, L = c(0,0,1,0,0,1,0,0))$`p-value`,
+               anova(lme.K2, L = c(0,0,-1,1,0,-1,1,0))$`p-value`,
+               anova(lme.K2, L = c(0,0,0,-1,1,0,-1,1))$`p-value`), 3)
+result1 = data.frame(Estimates = coe1, CI = ci1, p  = p1)
+rownames(result1) = NULL
+
+result = cbind( rbind(result0[3,], result1[1:2,], result0[2,]), 
+                rbind(result1[3:5,],NA), 
+                rbind(result0[c(6,7,8),],NA))
+options(knitr.kable.NA = '')
+kable(result, col.names = c("Estimates", "95% CI", "p-values","Estimates", "95% CI", "p-values","Estimates", "95% CI", "p-values"), align = "ccccccccc", format = "html") %>%
+  kable_styling() %>%
+  add_header_above(c(" ", "Non-CXL Fellow Eye" = 3, "CXL Fellow Eye"=3, "Difference" = 3))
+  
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+
+# Predicted values with nly fixed effects
+pred = data.frame( predict(lme.K2, re.form=~0), df$time, df$CXL, group = paste0(df$time,"_", df$CXL))
+# intend to plot median, 5% and 95% quantiles of predicted values 
+plot = as.matrix(aggregate(pred[,1], list(pred[,4]), 
+                           function(x) quantile(x,probs = c(0.25,0.5,0.75))))
+plot = data.frame(Group.1 = plot[,1], low = as.numeric(plot[,2]),x = as.numeric(plot[,3])
+                  ,up = as.numeric(plot[,4]))
+plot$CXL = substrRight(as.character(plot$Group.1), 1)
+plot$time = rep(c("0", "1","3","6+"), each= 2)
+
+#    nonCXL at 0, nonCXL at POM1, nonCXL at POM3,  at 6+
+pred = c(coe[1],                       #non-CXL at baseline
+         coe[1]+coe[3],                #non-CXL at POM1
+         coe[1]+coe[4],                #non-CXL at POM3
+         coe[1]+coe[5],                #non-CXL at POM6+
+         coe[1]+coe[2],                #CXL at baseline
+         coe[1]+coe[2]+coe[3]+coe[6],  #CXL at POM1
+         coe[1]+coe[2]+coe[4]+coe[7],  #CXL at POM3 
+         coe[1]+coe[2]+coe[5]+coe[8])  #CXL at POM6+
+sd = sqrt( c(cov.mat[1,1], 
+             cov.mat[1,1]  + cov.mat[3,3] + 2* cov.mat[3,1], 
+             cov.mat[1,1]  + cov.mat[4,4] + 2* cov.mat[4,1], 
+             cov.mat[1,1]  + cov.mat[5,5] + 2* cov.mat[5,1], 
+             cov.mat[1,1]  + cov.mat[2,2] + 2* cov.mat[2,1], 
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[3,3] + cov.mat[6,6] + 
+              2*(cov.mat[1,2]+cov.mat[1,3]+cov.mat[1,6]+cov.mat[2,3]+cov.mat[2,6]+cov.mat[3,6]),
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[4,4] + cov.mat[7,7] + 
+              2*(cov.mat[1,2]+cov.mat[1,4]+cov.mat[1,7]+cov.mat[2,4]+cov.mat[2,7]+cov.mat[4,7]),
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[5,5] + cov.mat[8,8] + 
+              2*(cov.mat[1,2]+cov.mat[1,5]+cov.mat[1,8]+cov.mat[2,5]+cov.mat[2,8]+cov.mat[5,8])
+             ))
+pred = data.frame(pred, low = pred - 1.96*sd, up = pred+1.96*sd,
+                  CXL = factor(rep(c(0,1), each = 4)), 
+                  time = rep(c("0","1","3","6+"), 2))
+levels(pred$CXL) = c("non-CXL", "CXL")
+
+
+# Make prediction plots
+pos = position_dodge(0.3)
+fit1 = ggplot(pred, aes(x = time,y = pred, group = CXL, color = CXL))+
+  geom_line(position = pos)+
+  geom_point(position = pos)+
+  geom_errorbar(aes(ymin = low, ymax = up),
+                position = pos, width = 0.25)+
+  ylab("K2")+
+  xlab("Months")+
+  theme_minimal()+ theme(legend.position = "top", legend.title = element_blank())
+
+```
+
+
+#### Km (Make table 6(b))
+
+
+```{r}
+Km = felloweye[,c("Patient", "CXL", "Km0", "Km1", "Km3", "Km3p",
+                  "KC","MA", "Age", "Gender", "Atopic", "Surgeon",
+                  "Rubbing", "Ethnicity")]
+Km$Km1[27] = "41.4"
+
+Km.long = gather(Km, time, Km, Km0:Km3, Km3p, factor_key=TRUE)
+Km.long$Km  = as.numeric(Km.long$Km)
+df = data.frame(Patient = Km.long$Patient, CXL = Km.long$CXL,
+                time = Km.long$time, Km = Km.long$Km)
+df = df[complete.cases(df),]
+
+#df = Km.long[complete.cases(Km.long),]
+
+
+lme.Km = lme(data = df, Km ~  CXL * time, random =~ 1|Patient)
+coe = lme.Km$coefficients$fixed
+ci  = round(intervals(lme.Km)$fixed[,c(1,3)],2)
+p = summary(lme.Km)$tTable[,5]
+ci = apply(ci, 1, function(x) {paste0("(",x[1],",",x[2],")" )})
+result0 = data.frame(Estimates = round(coe,2), CI = ci, p = round(p, 3))
+rownames(result0)[3:5] = c("time-1mon", "time-3mon", "time-6mon+")
+
+cov.mat = summary(lme.Km)$varFix
+coe1 = round(c(coe[4]-coe[3], 
+               coe[5]-coe[4], 
+               coe[3]+coe[6], 
+               coe[4]+coe[7]-(coe[3]+coe[6]), 
+               coe[5]+coe[8]-(coe[4]+coe[7])),2)
+sd = sqrt( c(cov.mat[3,3]+cov.mat[4,4] - 2* cov.mat[3,4],
+             cov.mat[4,4]+cov.mat[5,5] - 2* cov.mat[4,5],
+             cov.mat[3,3] + cov.mat[6,6] + 2* cov.mat[3,6],
+             cov.mat[4,4] + cov.mat[7,7] + cov.mat[3,3] + cov.mat[6,6] + 
+              2*(cov.mat[4,7]-cov.mat[3,4]-cov.mat[4,6]-cov.mat[3,7]-cov.mat[6,7]+cov.mat[3,6]),
+             cov.mat[5,5] + cov.mat[8,8] + cov.mat[4,4] + cov.mat[7,7] +
+               2* (cov.mat[5,8] - cov.mat[4,5]-cov.mat[5,7]-cov.mat[4,8]-cov.mat[7,8]+cov.mat[4,7])))
+ci1 = round(cbind(coe1 - 1.96*sd, coe1 + 1.96*sd),2)
+ci1 = apply(ci1, 1, function(x) {paste0("(",x[1],",",x[2],")" )})
+p1 = round( c( anova(lme.Km, L = c(0,0,-1,1,0,0,0,0))$`p-value`,
+               anova(lme.Km, L = c(0,0,0,-1,1,0,0,0))$`p-value`,
+               anova(lme.Km, L = c(0,0,1,0,0,1,0,0))$`p-value`,
+               anova(lme.Km, L = c(0,0,-1,1,0,-1,1,0))$`p-value`,
+               anova(lme.Km, L = c(0,0,0,-1,1,0,-1,1))$`p-value`), 3)
+result1 = data.frame(Estimates = coe1, CI = ci1, p  = p1)
+rownames(result1) = NULL
+
+result = cbind( rbind(result0[3,], result1[1:2,], result0[2,]), 
+                rbind(result1[3:5,],NA), 
+                rbind(result0[c(6,7,8),],NA))
+kable(result, col.names = c("Estimates", "95% CI", "p-values","Estimates", "95% CI", "p-values","Estimates", "95% CI", "p-values"), align = "ccccccccc", format = "html") %>%
+  kable_styling() %>%
+  add_header_above(c(" ", "Non-CXL Fellow Eye" = 3, "CXL Fellow Eye"=3, "Difference" = 3))
+
+#    nonCXL at 0, nonCXL at POM1, nonCXL at POM3,  at 6+
+pred = c(coe[1], coe[1]+coe[3], coe[1]+coe[4], coe[1]+coe[5],
+         coe[1]+coe[2], coe[1]+coe[2]+coe[3]+coe[6],  # CXL at baseline, CXL at POM1
+         coe[1]+coe[2]+coe[4]+coe[7], coe[1]+coe[2]+coe[5]+coe[8])   #CXL at POM3 & 6+
+sd = sqrt( c(cov.mat[1,1], 
+             cov.mat[1,1]  + cov.mat[3,3] + 2* cov.mat[3,1], 
+             cov.mat[1,1]  + cov.mat[4,4] + 2* cov.mat[4,1], 
+             cov.mat[1,1]  + cov.mat[5,5] + 2* cov.mat[5,1], 
+             cov.mat[1,1]  + cov.mat[2,2] + 2* cov.mat[2,1], 
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[3,3] + cov.mat[6,6] + 
+              2*(cov.mat[1,2]+cov.mat[1,3]+cov.mat[1,6]+cov.mat[2,3]+cov.mat[2,6]+cov.mat[3,6]),
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[4,4] + cov.mat[7,7] + 
+              2*(cov.mat[1,2]+cov.mat[1,4]+cov.mat[1,7]+cov.mat[2,4]+cov.mat[2,7]+cov.mat[4,7]),
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[5,5] + cov.mat[8,8] + 
+              2*(cov.mat[1,2]+cov.mat[1,5]+cov.mat[1,8]+cov.mat[2,5]+cov.mat[2,8]+cov.mat[5,8])
+             ))
+pred = data.frame(pred, low = pred - 1.96*sd, up = pred+1.96*sd,
+                  CXL = factor(rep(c(0,1), each = 4)), 
+                  time = rep(c("0","1","3","6+"), 2))
+levels(pred$CXL) = c("non-CXL", "CXL")
+
+fit2 =ggplot(pred, aes(x = time,y = pred, group = CXL, color = CXL))+
+  geom_line(position = pos)+
+  geom_point(position = pos)+
+  geom_errorbar(aes(ymin = low, ymax = up),
+                position = pos, width = 0.25)+
+  ylab("Km")+
+  xlab("Months")+
+  theme_minimal()+ theme(legend.position = "top", legend.title = element_blank())
+```
+
+
+#### Kmax (Make table 6(c))
+
+```{r, Kmax}
+Kmax = felloweye[,c("Patient", "CXL","K_Max_Front0", "K_Max_Front1", "K_Max_Front3", "Kmax3p",
+                  "KC","MA", "Age", "Gender", "Atopic", "Surgeon",
+                  "Rubbing", "Ethnicity")]
+Kmax.long = gather(Kmax, time, Kmax, K_Max_Front0:K_Max_Front3, Kmax3p, factor_key=TRUE)
+df = data.frame(Patient = Kmax.long$Patient, CXL = Kmax.long$CXL,
+                time = Kmax.long$time, Kmax = Kmax.long$Kmax)
+df = df[complete.cases(df),]
+
+#df = K2.long[complete.cases(K2.long),]
+
+lme.Kmax = lme(data = df, Kmax ~ CXL*time, random =~ 1|Patient)
+coe = lme.Kmax$coefficients$fixed
+ci  = round(intervals(lme.Kmax)$fixed[,c(1,3)],2)
+p = summary(lme.Kmax)$tTable[,5]
+ci = apply(ci, 1, function(x) {paste0("(",x[1],",",x[2],")" )})
+result0 = data.frame(Estimates = round(coe,2), CI = ci, p = round(p, 3))
+rownames(result0)[3:5] = c("time-1mon", "time-3mon", "time-6mon+")
+
+cov.mat = summary(lme.Kmax)$varFix
+coe1 = round(c(coe[4]-coe[3], 
+               coe[5]-coe[4], 
+               coe[3]+coe[6], 
+               coe[4]+coe[7]-(coe[3]+coe[6]), 
+               coe[5]+coe[8]-(coe[4]+coe[7])),2)
+sd = sqrt( c(cov.mat[3,3]+cov.mat[4,4] - 2* cov.mat[3,4],
+             cov.mat[4,4]+cov.mat[5,5] - 2* cov.mat[4,5],
+             cov.mat[3,3] + cov.mat[6,6] + 2* cov.mat[3,6],
+             cov.mat[4,4] + cov.mat[7,7] + cov.mat[3,3] + cov.mat[6,6] + 
+              2*(cov.mat[4,7]-cov.mat[3,4]-cov.mat[4,6]-cov.mat[3,7]-cov.mat[6,7]+cov.mat[3,6]),
+             cov.mat[5,5] + cov.mat[8,8] + cov.mat[4,4] + cov.mat[7,7] +
+               2* (cov.mat[5,8] - cov.mat[4,5]-cov.mat[5,7]-cov.mat[4,8]-cov.mat[7,8]+cov.mat[4,7])))
+ci1 = round(cbind(coe1 - 1.96*sd, coe1 + 1.96*sd),2)
+ci1 = apply(ci1, 1, function(x) {paste0("(",x[1],",",x[2],")" )})
+p1 = round( c( anova(lme.Kmax, L = c(0,0,-1,1,0,0,0,0))$`p-value`,
+               anova(lme.Kmax, L = c(0,0,0,-1,1,0,0,0))$`p-value`,
+               anova(lme.Kmax, L = c(0,0,1,0,0,1,0,0))$`p-value`,
+               anova(lme.Kmax, L = c(0,0,-1,1,0,-1,1,0))$`p-value`,
+               anova(lme.Kmax, L = c(0,0,0,-1,1,0,-1,1))$`p-value`), 3)
+result1 = data.frame(Estimates = coe1, CI = ci1, p  = p1)
+rownames(result1) = NULL
+
+result = cbind( rbind(result0[3,], result1[1:2,], result0[2,]), 
+                rbind(result1[3:5,],NA), 
+                rbind(result0[c(6,7,8),],NA))
+kable(result, col.names = c("Estimates", "95% CI", "p-values","Estimates", "95% CI", "p-values","Estimates", "95% CI", "p-values"), align = "ccccccccc", format = "html") %>%
+  kable_styling() %>%
+  add_header_above(c(" ", "Non-CXL Fellow Eye" = 3, "CXL Fellow Eye"=3, "Difference" = 3))
+
+
+#    nonCXL at 0, nonCXL at POM1, nonCXL at POM3,  at 6+
+pred = c(coe[1], coe[1]+coe[3], coe[1]+coe[4], coe[1]+coe[5],
+         coe[1]+coe[2], coe[1]+coe[2]+coe[3]+coe[6],  # CXL at baseline, CXL at POM1
+         coe[1]+coe[2]+coe[4]+coe[7], coe[1]+coe[2]+coe[5]+coe[8])   #CXL at POM3 & 6+
+sd = sqrt( c(cov.mat[1,1], 
+             cov.mat[1,1]  + cov.mat[3,3] + 2* cov.mat[3,1], 
+             cov.mat[1,1]  + cov.mat[4,4] + 2* cov.mat[4,1], 
+             cov.mat[1,1]  + cov.mat[5,5] + 2* cov.mat[5,1], 
+             cov.mat[1,1]  + cov.mat[2,2] + 2* cov.mat[2,1], 
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[3,3] + cov.mat[6,6] + 
+              2*(cov.mat[1,2]+cov.mat[1,3]+cov.mat[1,6]+cov.mat[2,3]+cov.mat[2,6]+cov.mat[3,6]),
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[4,4] + cov.mat[7,7] + 
+              2*(cov.mat[1,2]+cov.mat[1,4]+cov.mat[1,7]+cov.mat[2,4]+cov.mat[2,7]+cov.mat[4,7]),
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[5,5] + cov.mat[8,8] + 
+              2*(cov.mat[1,2]+cov.mat[1,5]+cov.mat[1,8]+cov.mat[2,5]+cov.mat[2,8]+cov.mat[5,8])
+             ))
+pred = data.frame(pred, low = pred - 1.96*sd, up = pred+1.96*sd,
+                  CXL = factor(rep(c(0,1), each = 4)), 
+                  time = rep(c("0","1","3","6+"), 2))
+levels(pred$CXL) = c("non-CXL", "CXL")
+
+fit3 = ggplot(pred, aes(x = time,y = pred, group = CXL, color = CXL))+
+  geom_line(position = pos)+
+  geom_point(position = pos)+
+  geom_errorbar(aes(ymin = low, ymax = up),
+                position = pos, width = 0.25)+
+  ylab("Kmax")+
+  xlab("Months")+
+  theme_minimal()+ theme(legend.position = "top", legend.title = element_blank())
+
+```
+
+
+#### Pachymetry at thinnest point (Make table 6(d))
+
+
+```{r, thin}
+thin = felloweye[,c("Patient", "CXL", "Pachy_thinnest0","Pachy_thinnest1", "Pachy_thinnest3", "thin3p", 
+                    "KC","MA", "Age", "Gender", "Atopic", "Surgeon",
+                    "Rubbing", "Ethnicity")]
+thin.long = gather(thin, time, thin, Pachy_thinnest0:Pachy_thinnest3, thin3p, factor_key=TRUE)
+df = data.frame(Patient = thin.long$Patient, CXL = thin.long$CXL,
+                time = thin.long$time, thin = thin.long$thin)
+df = df[complete.cases(df),]
+
+#df = K2.long[complete.cases(K2.long),]
+
+lme.thin = lme(data = df, thin ~ CXL*time, random =~ 1|Patient)
+coe = lme.thin$coefficients$fixed
+ci  = round(intervals(lme.thin)$fixed[,c(1,3)],2)
+p = summary(lme.thin)$tTable[,5]
+ci = apply(ci, 1, function(x) {paste0("(",x[1],",",x[2],")" )})
+result0 = data.frame(Estimates = round(coe,2), CI = ci, p = round(p, 3))
+rownames(result0)[3:5] = c("time-1mon", "time-3mon", "time-6mon+")
+
+cov.mat = summary(lme.thin)$varFix
+coe1 = round(c(coe[4]-coe[3], 
+               coe[5]-coe[4], 
+               coe[3]+coe[6], 
+               coe[4]+coe[7]-(coe[3]+coe[6]), 
+               coe[5]+coe[8]-(coe[4]+coe[7])),2)
+sd = sqrt( c(cov.mat[3,3]+cov.mat[4,4] - 2* cov.mat[3,4],
+             cov.mat[4,4]+cov.mat[5,5] - 2* cov.mat[4,5],
+             cov.mat[3,3] + cov.mat[6,6] + 2* cov.mat[3,6],
+             cov.mat[4,4] + cov.mat[7,7] + cov.mat[3,3] + cov.mat[6,6] + 
+              2*(cov.mat[4,7]-cov.mat[3,4]-cov.mat[4,6]-cov.mat[3,7]-cov.mat[6,7]+cov.mat[3,6]),
+             cov.mat[5,5] + cov.mat[8,8] + cov.mat[4,4] + cov.mat[7,7] +
+               2* (cov.mat[5,8] - cov.mat[4,5]-cov.mat[5,7]-cov.mat[4,8]-cov.mat[7,8]+cov.mat[4,7])))
+ci1 = round(cbind(coe1 - 1.96*sd, coe1 + 1.96*sd),2)
+ci1 = apply(ci1, 1, function(x) {paste0("(",x[1],",",x[2],")" )})
+p1 = round( c( anova(lme.thin, L = c(0,0,-1,1,0,0,0,0))$`p-value`,
+               anova(lme.thin, L = c(0,0,0,-1,1,0,0,0))$`p-value`,
+               anova(lme.thin, L = c(0,0,1,0,0,1,0,0))$`p-value`,
+               anova(lme.thin, L = c(0,0,-1,1,0,-1,1,0))$`p-value`,
+               anova(lme.thin, L = c(0,0,0,-1,1,0,-1,1))$`p-value`), 3)
+result1 = data.frame(Estimates = coe1, CI = ci1, p  = p1)
+rownames(result1) = NULL
+
+result = cbind( rbind(result0[3,], result1[1:2,], result0[2,]), 
+                rbind(result1[3:5,],NA), 
+                rbind(result0[c(6,7,8),],NA))
+kable(result, col.names = c("Estimates", "95% CI", "p-values","Estimates", "95% CI", "p-values","Estimates", "95% CI", "p-values"), align = "ccccccccc", format = "html") %>%
+  kable_styling() %>%
+  add_header_above(c(" ", "Non-CXL Fellow Eye" = 3, "CXL Fellow Eye"=3, "Difference" = 3))
+
+
+
+#    nonCXL at 0, nonCXL at POM1, nonCXL at POM3,  at 6+
+pred = c(coe[1], coe[1]+coe[3], coe[1]+coe[4], coe[1]+coe[5],
+         coe[1]+coe[2], coe[1]+coe[2]+coe[3]+coe[6],  # CXL at baseline, CXL at POM1
+         coe[1]+coe[2]+coe[4]+coe[7], coe[1]+coe[2]+coe[5]+coe[8])   #CXL at POM3 & 6+
+sd = sqrt( c(cov.mat[1,1], 
+             cov.mat[1,1]  + cov.mat[3,3] + 2* cov.mat[3,1], 
+             cov.mat[1,1]  + cov.mat[4,4] + 2* cov.mat[4,1], 
+             cov.mat[1,1]  + cov.mat[5,5] + 2* cov.mat[5,1], 
+             cov.mat[1,1]  + cov.mat[2,2] + 2* cov.mat[2,1], 
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[3,3] + cov.mat[6,6] + 
+              2*(cov.mat[1,2]+cov.mat[1,3]+cov.mat[1,6]+cov.mat[2,3]+cov.mat[2,6]+cov.mat[3,6]),
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[4,4] + cov.mat[7,7] + 
+              2*(cov.mat[1,2]+cov.mat[1,4]+cov.mat[1,7]+cov.mat[2,4]+cov.mat[2,7]+cov.mat[4,7]),
+             cov.mat[1,1]  + cov.mat[2,2] + cov.mat[5,5] + cov.mat[8,8] + 
+              2*(cov.mat[1,2]+cov.mat[1,5]+cov.mat[1,8]+cov.mat[2,5]+cov.mat[2,8]+cov.mat[5,8])
+             ))
+
+pred = data.frame(pred, low = pred - 1.96*sd, up = pred+1.96*sd,
+                  CXL = factor(rep(c(0,1), each = 4)), 
+                  time = rep(c("0","1","3","6+"), 2))
+levels(pred$CXL) = c("non-CXL", "CXL")
+
+fit4 = ggplot(pred, aes(x = time,y = pred, group = CXL, color = CXL))+
+  geom_line(position = pos)+
+  geom_point(position = pos)+
+  geom_errorbar(aes(ymin = low, ymax = up),
+                position = pos, width = 0.25)+
+  ylab("Pachymetry Thinnest")+
+  xlab("Months")+
+  theme_minimal()+ theme(legend.position = "top", legend.title = element_blank())
+
+```
+
+#### visualize predicted results
+
+```{r}
+# visualize predicted results
+ggarrange(fit1, fit2, fit3, fit4,nrow = 2 , ncol = 2, common.legend = TRUE)
+```
