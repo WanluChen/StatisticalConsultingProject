@@ -1,6 +1,7 @@
 ---
 title: "Tables 1-3"
 output: html_document
+author: "Melody Dehghan"
 ---
 
 ```{r setup, message=FALSE, echo= FALSE, warning=FALSE}
@@ -10,8 +11,13 @@ library(gtsummary)
 library(table1)
 library(ggplot2)
 library(gridExtra)
+library(tidyr)
 
-data <- read_excel("Uri Soiberman_FellowEye.xlsx")
+data <- read_excel("FellowEye.xlsx")
+
+
+
+
 dt<- data[-c(1:2),]
 dt_temp<- dt[,c(1:13, 16:21 ,99)]
 dt_temp2<- dt[,c(1:13, 16:21 ,99)]
@@ -22,22 +28,34 @@ data_names<- c("Patient_code", "Left_Right", "Age", "Gender", "KC_fam_his", "myo
 names(dt_temp)<- data_names
 dt_fin<- dt_temp %>% filter(prev_lasik==0)
 
+dt_fin<- dt_fin %>% mutate(remover= ifelse( Patient_code==10|Patient_code==16|Patient_code==21|Patient_code==39|Patient_code==44|Patient_code==45|Patient_code==61|Patient_code==65|Patient_code==77|Patient_code==118, 1, 0))
+dt_fin<- dt_fin %>% filter(remover==0)
+#81 people now 
+
+
 #hist(dt_fin$Age) #skew= use median
 #hist(dt_fin$disease_duration) #skewed- use median
 
 #create a CXL column
 dt_fin<- dt_fin %>% mutate(CXL_fellow= ifelse(Left_Right==CXL_choice, "Bilateral CXL", "Unilateral CXL"))
 
+dt_fin <- dt_fin %>% drop_na(CXL_fellow) #remove the one missing CXL person 
 #create fam history variable
 dt_fin<- dt_fin %>% mutate(family_history= ifelse(myopia_astig_fam_his==1, "Myopia/ astigmatism", ifelse(KC_fam_his==1, "KCN", ifelse(is.na(dt_fin$KC_fam_his), NA, "None"))))
 #make factor variables
 dt_fin$Gender<- as.factor(dt_fin$Gender)
 levels(dt_fin$Gender) <- c("Male", "Female")
 #levels(dt_fin$Gender) #check
+dt_fin$Ethnicity[dt_fin$Ethnicity==0] <- NA 
 dt_fin$Ethnicity<- as.factor(dt_fin$Ethnicity)
-levels(dt_fin$Ethnicity) <- c("Caucasian", "African American", "South Asian", "East Asian", "Hispanic")
+#dt_fin$Ethnicity[dt_fin$Ethnicity=='0'] <- NA 
+levels(dt_fin$Ethnicity) <- c("Caucasian", "African American", "South Asian", "East Asian")
 #levels(dt_fin$Ethnicity)
 label(dt_fin$family_history)= "Family History"
+
+
+
+
 
 
 #https://cran.r-project.org/web/packages/gtsummary/readme/README.html
@@ -46,7 +64,6 @@ label(dt_fin$family_history)= "Family History"
 tb1<- dt_fin %>% select(Age, Gender, family_history, Ethnicity, CXL_fellow) 
 
 #table 2: right/left, disease duration, atopic disease, eye rubbing, contact use and type, apical scar, vogt straie, cone observed clinically
-
 
 dt_fin$CXL_choice<- as.factor(dt_fin$CXL_choice)
 levels(dt_fin$CXL_choice) <- c("Right", "Left")
@@ -63,22 +80,30 @@ levels(dt_fin$vogt_striae) <- c("No", "Yes")
 dt_fin$cone_observed <-  as.factor(dt_fin$cone_observed)
 levels(dt_fin$cone_observed) <- c("No", "Yes")
 
-label(dt_fin$CXL_choice)= "Eye"
-label(dt_fin$disease_duration)= "Disease Duration"
-label(dt_fin$eye_rubbing)= "Eye Rubbing"
-label(dt_fin$contact_use)= "Contact Lenses Use and Type"
-label(dt_fin$apical)= "Apical Scar"
-label(dt_fin$Atopic)= "Atopic Disease"
-label(dt_fin$vogt_striae)= "Vogt Striae"
-label(dt_fin$cone_observed)= "Cone Observed Clinically"
+dt_removal<- read_excel("surgeon_number.xlsx")
+names(dt_removal)[2]<- c("Patient_code")
+dt_rem<- dt_removal[c("Patient_code", "Surgeon")]
+dt_rem<- dt_rem[!duplicated(dt_rem$Patient_code), ]
+data_merge<- merge(dt_fin,dt_rem,by="Patient_code",all.x=TRUE)
 
-tb2<- dt_fin %>% select(CXL_choice, disease_duration, Atopic, eye_rubbing, contact_use, apical,vogt_striae, cone_observed, CXL_fellow) 
+label(data_merge$CXL_choice)= "Eye"
+label(data_merge$disease_duration)= "Disease Duration"
+label(data_merge$eye_rubbing)= "Eye Rubbing"
+label(data_merge$contact_use)= "Contact Lenses Use and Type"
+label(data_merge$apical)= "Apical Scar"
+label(data_merge$Atopic)= "Atopic Disease"
+label(data_merge$vogt_striae)= "Vogt Striae"
+label(data_merge$cone_observed)= "Cone Observed Clinically"
+
+
+
+tb2<- data_merge %>% select(CXL_choice, disease_duration, Atopic, eye_rubbing, contact_use, apical,vogt_striae, cone_observed, CXL_fellow, Surgeon) 
 
 #table 3: K2, Km, front KMAX, pachymetry
 #For people with proof of pentacam, use these values instead of the pre-operative 
 
-table3_dt<- dt[,c(2, 13, 35, 36, 48, 55, 70, 71, 83, 90, 99)]
-names(table3_dt)<- c("Left_Right", "prev_lasik", "K2_pre", "KM_pre", "Patchy_thin_pre", "K_max_front_pre", "K2_pentacam", "KM_pentacam", "Patchy_thin_pentacam", "K_max_front_pentacam", "CXL_choice")
+table3_dt<- dt[,c(1, 2, 13, 35, 36, 48, 55, 70, 71, 83, 90, 99)]
+names(table3_dt)<- c("Patient_code", "Left_Right", "prev_lasik", "K2_pre", "KM_pre", "Patchy_thin_pre", "K_max_front_pre", "K2_pentacam", "KM_pentacam", "Patchy_thin_pentacam", "K_max_front_pentacam", "CXL_choice")
 
 #make everything numeric
 table3_dt <- sapply(table3_dt, as.numeric)
@@ -87,11 +112,14 @@ table3_dt <-as.data.frame(cbind(table3_dt))
 table3_dt<- table3_dt %>% filter(prev_lasik==0)
 #create a CXL column
 table3_dt<- table3_dt %>% mutate(CXL_fellow= ifelse(Left_Right==CXL_choice, "Bilateral CXL", "Unilateral CXL"))
+table3_dt <- table3_dt %>% drop_na(CXL_fellow)
 #if pentacam exists, use this value
 table3_dt<- table3_dt %>% mutate(K2 = ifelse(is.na(K2_pentacam)== FALSE, K2_pentacam, K2_pre))
 table3_dt<- table3_dt %>% mutate(KM = ifelse(is.na(KM_pentacam)== FALSE, KM_pentacam, KM_pre))
 table3_dt<- table3_dt %>% mutate(Front_Kmax = ifelse(is.na(K_max_front_pentacam)== FALSE, K_max_front_pentacam, K_max_front_pre))
 table3_dt<- table3_dt %>% mutate(Patchy_thin = ifelse(is.na(Patchy_thin_pentacam)== FALSE, Patchy_thin_pentacam, Patchy_thin_pre))
+table3_dt<- table3_dt%>% mutate(remover= ifelse( Patient_code==10|Patient_code==16|Patient_code==21|Patient_code==39|Patient_code==44|Patient_code==45|Patient_code==61|Patient_code==65|Patient_code==77|Patient_code==118, 1, 0))
+table3_dt<- table3_dt %>% filter(remover==0)
 
 
 tb3<- table3_dt %>% select(K2, KM, Front_Kmax, Patchy_thin, CXL_fellow)
@@ -137,8 +165,16 @@ grid.arrange(k2, km, patchy_thin, front_kmax)
 #t.test
 # tbl_summary(tb1, by= CXL_fellow) %>% add_p(test= list(all_continuous() ~ "t.test")) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_spanning_header(starts_with("stat_") ~ "**CXL Type**")%>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
 
+
+fisher.test(tb1$family_history, tb1$CXL_fellow)
+fisher.test(tb1$Ethnicity, tb1$CXL_fellow)
+
+
+
 #wilcoxon
 tbl_summary(tb1, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+tbl_summary(tb1) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
 ```
 
 **Table 2** Baseline eye characteristics among those with bilateral CXL and unilateral CXL, respectively. 
@@ -148,6 +184,18 @@ tbl_summary(tb1, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variab
 
 #wilcoxon
 tbl_summary(tb2, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+tbl_summary(tb2) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+chisq.test(tb2$CXL_choice, tb2$CXL_fellow) 
+wilcox.test(disease_duration~ CXL_fellow, data = tb2)
+chisq.test(tb2$Atopic, tb2$CXL_fellow) 
+fisher.test(tb2$eye_rubbing, tb2$CXL_fellow)
+fisher.test(tb2$contact_use, tb2$CXL_fellow)
+
+fisher.test(tb2$vogt_striae, tb2$CXL_fellow)
+fisher.test(tb2$cone_observed, tb2$CXL_fellow)
+fisher.test(tb2$Surgeon, tb2$CXL_fellow)
 ```
 
 **Table 3** ~ Severity of disease at preoperative visit among those with bilateral CXL and unilateral CXL, respectively. 
@@ -157,6 +205,8 @@ tbl_summary(tb2, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variab
 
 #wilcoxon
 tbl_summary(tb3, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
+
+tbl_summary(tb3) %>% modify_header(label = "**Variable**") %>% bold_labels() %>% modify_footnote(update = starts_with("stat_") ~ "median (IQR) for continuous variables; n (%) categorical variables")
 
 #check p-values
 # wilcox.test(K2~ CXL_fellow, data = tb3)
@@ -169,3 +219,4 @@ tbl_summary(tb3, by= CXL_fellow) %>% add_p() %>% modify_header(label = "**Variab
 # t.test(Front_Kmax~ CXL_fellow, data = tb3)
 # t.test(Patchy_thin~ CXL_fellow, data = tb3)
 ```
+
